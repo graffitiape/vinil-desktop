@@ -1,7 +1,7 @@
 [package]
-name = "vinil"
+name = "vinil-desktop"
 version = "0.1.0"
-description = "Vinil - Personal Music Streaming App"
+description = "Vinil Desktop - Personal Music Streaming App"
 authors = ["you"]
 license = ""
 repository = ""

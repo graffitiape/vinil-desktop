@@ -1,4 +1,4 @@
-# Vinil
+# Vinil Desktop
 
 A personal music streaming desktop application built with Tauri and React.
 
