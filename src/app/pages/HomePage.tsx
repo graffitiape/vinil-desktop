@@ -1,7 +1,8 @@
 import { Play, ChevronRight } from "lucide-react";
-import { mockAlbums, formatDuration } from "@/app/data/mockData";
+import { formatDuration } from "@/app/utils/format";
 import { AlbumCard } from "@/app/components/AlbumCard";
 import { usePlayer } from "@/app/context/PlayerContext";
+import { useAlbums } from "@/app/hooks/useAlbums";
 
 interface HomePageProps {
   onNavigateToAlbum: (albumId: string) => void;
@@ -9,9 +10,20 @@ interface HomePageProps {
 
 export const HomePage = ({ onNavigateToAlbum }: HomePageProps) => {
   const { currentTrack, playTrack } = usePlayer();
+  const { data: albums = [], isLoading } = useAlbums();
 
-  const recentlyPlayed = mockAlbums.slice(0, 6);
-  const recentlyAdded = mockAlbums.slice(3, 9);
+  const recentlyPlayed = albums.slice(0, 6);
+  const recentlyAdded = [...albums].sort((a, b) =>
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  ).slice(0, 5);
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="animate-pulse" style={{ color: 'var(--text-muted)' }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -21,10 +33,10 @@ export const HomePage = ({ onNavigateToAlbum }: HomePageProps) => {
       {/* Header */}
       <div className="mb-8">
         <h1 className="mb-2" style={{ color: "var(--text-primary)" }}>
-          Lorem ipsum dolor
+          Welcome back
         </h1>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Monday, January 17, 2026
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
         </p>
       </div>
 
@@ -39,23 +51,20 @@ export const HomePage = ({ onNavigateToAlbum }: HomePageProps) => {
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = "var(--accent-primary)";
-            e.currentTarget.style.boxShadow =
-              "0 0 24px rgba(245, 166, 35, 0.3)";
+            e.currentTarget.style.boxShadow = "0 0 24px rgba(245, 166, 35, 0.3)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.borderColor = "var(--border-default)";
             e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.4)";
           }}
         >
-          {/* Album Art with Vinyl */}
           <div className="relative flex-shrink-0">
             <div className="relative">
               <img
-                src={currentTrack.artworkUrl}
-                alt={currentTrack.album}
+                src={currentTrack.artwork_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=400&fit=crop'}
+                alt={currentTrack.title}
                 className="w-32 h-32 rounded-lg"
               />
-              {/* Vinyl edge peeking out */}
               <div
                 className="absolute -right-2 top-4 bottom-4 w-6 rounded-r"
                 style={{
@@ -68,22 +77,15 @@ export const HomePage = ({ onNavigateToAlbum }: HomePageProps) => {
             </div>
           </div>
 
-          {/* Track Info */}
           <div className="flex-1 min-w-0">
-            <p
-              className="text-xs uppercase tracking-wider mb-2"
-              style={{ color: "var(--text-muted)" }}
-            >
+            <p className="text-xs uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
               Continue Listening
             </p>
             <h3 className="mb-1" style={{ color: "var(--text-primary)" }}>
               {currentTrack.title}
             </h3>
-            <p
-              className="text-sm mb-3"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {currentTrack.artist} • {currentTrack.album}
+            <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
+              {currentTrack.artist}
             </p>
             <div className="flex items-center gap-4">
               <button
@@ -93,33 +95,14 @@ export const HomePage = ({ onNavigateToAlbum }: HomePageProps) => {
                   background: "var(--accent-primary)",
                   color: "var(--text-on-accent)",
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--accent-hover)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "var(--accent-primary)";
-                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-hover)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent-primary)"; }}
               >
                 <Play className="w-4 h-4" fill="var(--text-on-accent)" />
                 <span className="font-semibold text-sm">Continue</span>
               </button>
-              <div
-                className="h-1 flex-1 rounded-full overflow-hidden"
-                style={{ background: "var(--bg-deep)", maxWidth: "200px" }}
-              >
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: "45%",
-                    background: "var(--accent-primary)",
-                  }}
-                />
-              </div>
-              <span
-                className="text-xs font-mono"
-                style={{ color: "var(--text-muted)" }}
-              >
-                {formatDuration(120)} / {formatDuration(currentTrack.duration)}
+              <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                {formatDuration(currentTrack.duration)}
               </span>
             </div>
           </div>
@@ -127,64 +110,68 @@ export const HomePage = ({ onNavigateToAlbum }: HomePageProps) => {
       )}
 
       {/* Recently Played */}
-      <div className="mb-12">
-        <div className="flex items-center justify-between mb-6">
-          <h2 style={{ color: "var(--text-primary)" }}>Recently Played</h2>
-          <button
-            className="flex items-center gap-1 text-sm font-medium transition-colors"
-            style={{ color: "var(--accent-primary)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--accent-hover)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "var(--accent-primary)";
-            }}
-          >
-            See All
-            <ChevronRight className="w-4 h-4" />
-          </button>
+      {recentlyPlayed.length > 0 && (
+        <div className="mb-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 style={{ color: "var(--text-primary)" }}>Recently Played</h2>
+            <button
+              className="flex items-center gap-1 text-sm font-medium transition-colors"
+              style={{ color: "var(--accent-primary)" }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent-hover)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--accent-primary)"; }}
+            >
+              See All
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-6 gap-4 p-2">
+            {recentlyPlayed.map((album) => (
+              <AlbumCard
+                key={album.id}
+                album={album}
+                onClick={() => onNavigateToAlbum(album.id)}
+              />
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-6 gap-4 p-2">
-          {recentlyPlayed.map((album) => (
-            <AlbumCard
-              key={album.id}
-              album={album}
-              onClick={() => onNavigateToAlbum(album.id)}
-              onPlay={() => album.tracks[0] && playTrack(album.tracks[0])}
-            />
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* Recently Added */}
-      <div className="mb-12">
-        <div className="flex items-center justify-between mb-6">
-          <h2 style={{ color: "var(--text-primary)" }}>Recently Added</h2>
-          <button
-            className="flex items-center gap-1 text-sm font-medium transition-colors"
-            style={{ color: "var(--accent-primary)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--accent-hover)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "var(--accent-primary)";
-            }}
-          >
-            See All
-            <ChevronRight className="w-4 h-4" />
-          </button>
+      {recentlyAdded.length > 0 && (
+        <div className="mb-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 style={{ color: "var(--text-primary)" }}>Recently Added</h2>
+            <button
+              className="flex items-center gap-1 text-sm font-medium transition-colors"
+              style={{ color: "var(--accent-primary)" }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent-hover)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--accent-primary)"; }}
+            >
+              See All
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-5 gap-4 p-2">
+            {recentlyAdded.map((album) => (
+              <AlbumCard
+                key={album.id}
+                album={album}
+                onClick={() => onNavigateToAlbum(album.id)}
+              />
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-5 gap-4 p-2">
-          {recentlyAdded.map((album) => (
-            <AlbumCard
-              key={album.id}
-              album={album}
-              onClick={() => onNavigateToAlbum(album.id)}
-              onPlay={() => album.tracks[0] && playTrack(album.tracks[0])}
-            />
-          ))}
+      )}
+
+      {/* Empty state */}
+      {albums.length === 0 && !currentTrack && (
+        <div className="flex flex-col items-center justify-center py-24">
+          <h3 className="mb-2" style={{ color: 'var(--text-primary)' }}>Your library is empty</h3>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Upload some music to get started
+          </p>
         </div>
-      </div>
+      )}
     </div>
   );
 };

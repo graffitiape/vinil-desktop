@@ -1,5 +1,5 @@
 import { Play } from "lucide-react";
-import { Album } from "@/app/data/mockData";
+import type { Album } from "@/app/types/api";
 import { useState } from "react";
 
 interface AlbumCardProps {
@@ -32,7 +32,7 @@ export const AlbumCard = ({ album, onClick, onPlay }: AlbumCardProps) => {
         {/* Album Art with Vinyl Edge */}
         <div className="relative">
           <img
-            src={album.artworkUrl}
+            src={album.artwork_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=400&fit=crop'}
             alt={album.title}
             className="w-full aspect-square object-cover rounded"
           />

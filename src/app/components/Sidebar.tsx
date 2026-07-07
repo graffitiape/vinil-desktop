@@ -1,5 +1,6 @@
 import { Home, Search, Library, Upload, Settings, Plus, Disc3 } from 'lucide-react';
-import { mockPlaylists } from '@/app/data/mockData';
+import { usePlaylists } from '@/app/hooks/usePlaylists';
+import { useAuth } from '@/app/context/AuthContext';
 
 interface SidebarProps {
   currentPage: string;
@@ -7,12 +8,22 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ currentPage, onNavigate }: SidebarProps) => {
+  const { data: playlists = [] } = usePlaylists();
+  const { user, logout } = useAuth();
+
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'search', label: 'Search', icon: Search },
     { id: 'library', label: 'Library', icon: Library },
     { id: 'upload', label: 'Upload', icon: Upload },
   ];
+
+  const initials = user?.display_name
+    ?.split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || '??';
 
   return (
     <div
@@ -96,27 +107,19 @@ export const Sidebar = ({ currentPage, onNavigate }: SidebarProps) => {
       <div className="px-3 py-4 space-y-3 relative">
         <div
           className="absolute top-0 left-3 right-3 h-px"
-          style={{
-            background: 'linear-gradient(90deg, transparent, var(--border-default), transparent)',
-          }}
+          style={{ background: 'linear-gradient(90deg, transparent, var(--border-default), transparent)' }}
         />
         <div className="flex items-center justify-between px-3 pt-2">
           <span
             className="text-xs uppercase font-bold tracking-wider"
-            style={{
-              color: 'var(--text-muted)',
-              textShadow: '0 0 10px rgba(245, 166, 35, 0.3)',
-            }}
+            style={{ color: 'var(--text-muted)', textShadow: '0 0 10px rgba(245, 166, 35, 0.3)' }}
           >
             Playlists
           </span>
         </div>
         <button
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all group"
-          style={{
-            color: 'var(--accent-primary)',
-            border: '1px dashed rgba(245, 166, 35, 0.3)',
-          }}
+          style={{ color: 'var(--accent-primary)', border: '1px dashed rgba(245, 166, 35, 0.3)' }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'rgba(245, 166, 35, 0.05)';
             e.currentTarget.style.borderColor = 'var(--accent-primary)';
@@ -132,7 +135,7 @@ export const Sidebar = ({ currentPage, onNavigate }: SidebarProps) => {
           <span className="text-sm font-medium">New Playlist</span>
         </button>
         <div className="space-y-1 max-h-48 overflow-y-auto">
-          {mockPlaylists.map((playlist) => (
+          {playlists.map((playlist) => (
             <button
               key={playlist.id}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left group"
@@ -150,18 +153,16 @@ export const Sidebar = ({ currentPage, onNavigate }: SidebarProps) => {
             >
               <div className="relative">
                 <img
-                  src={playlist.artworkUrl}
+                  src={playlist.artwork_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=200&h=200&fit=crop'}
                   alt={playlist.name}
                   className="w-8 h-8 rounded transition-all group-hover:shadow-lg"
-                  style={{
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  }}
+                  style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)' }}
                 />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">{playlist.name}</div>
                 <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {playlist.trackCount} tracks
+                  {playlist.track_count} tracks
                 </div>
               </div>
             </button>
@@ -184,18 +185,14 @@ export const Sidebar = ({ currentPage, onNavigate }: SidebarProps) => {
               color: 'var(--text-on-accent)',
               boxShadow: '0 0 0 0 rgba(245, 166, 35, 0.4)',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 0 4px rgba(245, 166, 35, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 0 0 rgba(245, 166, 35, 0.4)';
-            }}
+            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 0 4px rgba(245, 166, 35, 0.2)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 0 0 rgba(245, 166, 35, 0.4)'; }}
           >
-            JD
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-              John Doe
+              {user?.display_name || 'User'}
             </div>
           </div>
           <button
@@ -212,40 +209,6 @@ export const Sidebar = ({ currentPage, onNavigate }: SidebarProps) => {
           >
             <Settings className="w-5 h-5 transition-all" style={{ color: 'var(--text-muted)' }} />
           </button>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              Storage
-            </span>
-            <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-              12.4 / 50 GB
-            </span>
-          </div>
-          <div
-            className="h-2 rounded-full overflow-hidden relative"
-            style={{
-              background: 'var(--bg-deep)',
-              boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.5)',
-            }}
-          >
-            <div
-              className="h-full rounded-full relative"
-              style={{
-                width: '24.8%',
-                background: 'linear-gradient(90deg, var(--accent-primary), var(--accent-hover))',
-                boxShadow: '0 0 10px rgba(245, 166, 35, 0.5)',
-              }}
-            >
-              <div
-                className="absolute inset-0 opacity-30"
-                style={{
-                  background: 'linear-gradient(90deg, transparent, white, transparent)',
-                }}
-              />
-            </div>
-          </div>
         </div>
       </div>
     </div>

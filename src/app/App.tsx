@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useAuth } from '@/app/context/AuthContext';
 import { PlayerProvider } from '@/app/context/PlayerContext';
 import { Sidebar } from '@/app/components/Sidebar';
 import { PlayerBar } from '@/app/components/PlayerBar';
+import { LoginPage } from '@/app/pages/LoginPage';
 import { HomePage } from '@/app/pages/HomePage';
 import { LibraryPage } from '@/app/pages/LibraryPage';
 import { AlbumDetailPage } from '@/app/pages/AlbumDetailPage';
@@ -13,9 +15,27 @@ import { SettingsPage } from '@/app/pages/SettingsPage';
 type Page = 'home' | 'library' | 'upload' | 'search' | 'settings' | 'album' | 'now-playing';
 
 export default function App() {
+  const { isAuthenticated, isLoading } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [showNowPlaying, setShowNowPlaying] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div
+        className="flex items-center justify-center h-screen"
+        style={{ background: 'var(--bg-deep)' }}
+      >
+        <div className="animate-pulse" style={{ color: 'var(--accent-primary)' }}>
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   const handleNavigate = (page: string) => {
     if (page === 'album') return;
@@ -45,7 +65,7 @@ export default function App() {
   return (
     <PlayerProvider>
       <div className="flex flex-col h-screen" style={{ background: 'var(--bg-primary)' }}>
-        <div className="flex flex-1 overflow-hidden pb-[90px]">
+        <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
           {!showNowPlaying && <Sidebar currentPage={currentPage} onNavigate={handleNavigate} />}
 

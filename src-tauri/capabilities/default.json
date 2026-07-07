@@ -6,6 +6,23 @@
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "fs:default",
+    {
+      "identifier": "fs:allow-read",
+      "allow": [{ "path": "$APPDATA/offline/**" }]
+    },
+    {
+      "identifier": "fs:allow-write",
+      "allow": [{ "path": "$APPDATA/offline/**" }]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "$APPDATA/offline/**" }]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [{ "path": "$APPDATA/offline/**" }]
+    }
   ]
 }
