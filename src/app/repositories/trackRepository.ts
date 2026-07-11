@@ -1,4 +1,4 @@
-import { apiClient } from '@/app/services/axios';
+import { apiClient, apiUrl } from '@/app/services/axios';
 import type { Track } from '@/app/types/api';
 
 export const trackRepository = {
@@ -9,16 +9,15 @@ export const trackRepository = {
 
   delete: (id: string) => apiClient.delete(`/tracks/${id}`),
 
-  /** Fetches the presigned stream URL (follows the redirect). */
+  /** Builds an authenticated stream URL that the Audio element can request directly. */
   getStreamUrl: async (id: string): Promise<string> => {
-    // The backend returns a 307 redirect to S3. We fetch with redirect: 'manual'
-    // to grab the Location header, so the Audio element can use the direct URL.
     const token = localStorage.getItem('vinil_token');
-    const res = await fetch(`http://localhost:3333/api/tracks/${id}/stream`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      redirect: 'follow',
-    });
-    // After following the redirect, res.url is the final presigned S3 URL
-    return res.url;
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    const url = new URL(apiUrl(`/tracks/${id}/stream`));
+    url.searchParams.set('token', token);
+    return url.toString();
   },
 };

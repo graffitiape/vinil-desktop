@@ -25,10 +25,16 @@ Install the dependencies:
 npm i
 ```
 
+Point the desktop app at the backend API. For local backend development this is optional because the app defaults to `http://localhost:3333/api`.
+```bash
+cp .env.example .env.local
+```
+
 Start the development server:
 ```bash
 npm run dev
 ```
+The Vite dev server runs at `http://127.0.0.1:5175`.
 
 Build the Tauri desktop app:
 ```bash

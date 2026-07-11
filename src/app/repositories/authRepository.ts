@@ -1,7 +1,9 @@
 import { apiClient } from '@/app/services/axios';
-import type { AuthResponse } from '@/app/types/api';
+import type { AuthResponse, User } from '@/app/types/api';
 
 export const authRepository = {
+  me: () => apiClient.get<User>('/auth/me').then((r) => r.data),
+
   login: (email: string, password: string) =>
     apiClient.post<AuthResponse>('/auth/login', { email, password }).then((r) => r.data),
 

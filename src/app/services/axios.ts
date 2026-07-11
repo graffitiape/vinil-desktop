@@ -1,9 +1,15 @@
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:3333/api';
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3333/api'
+).replace(/\/+$/, '');
+
+export function apiUrl(path: string): string {
+  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+}
 
 export const apiClient = axios.create({
-  baseURL: API_BASE,
+  baseURL: API_BASE_URL,
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -25,10 +31,3 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-export function getStreamUrl(trackId: string): string {
-  const token = localStorage.getItem('vinil_token');
-  // The backend redirects to a presigned S3 URL, but we need the auth header for the initial request.
-  // For HTML5 Audio we'll fetch the redirect URL manually.
-  return `${API_BASE}/tracks/${trackId}/stream`;
-}

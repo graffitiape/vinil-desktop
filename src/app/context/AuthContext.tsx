@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { authRepository } from '@/app/repositories/authRepository';
 import type { User } from '@/app/types/api';
 
 interface AuthContextType {
@@ -24,12 +25,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('vinil_token');
-    const savedUser = localStorage.getItem('vinil_user');
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      const token = localStorage.getItem('vinil_token');
+
+      if (!token) {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const currentUser = await authRepository.me();
+        localStorage.setItem('vinil_user', JSON.stringify(currentUser));
+        if (!cancelled) {
+          setUser(currentUser);
+        }
+      } catch {
+        localStorage.removeItem('vinil_token');
+        localStorage.removeItem('vinil_user');
+        if (!cancelled) {
+          setUser(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Listen for forced logout (401)
