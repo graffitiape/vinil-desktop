@@ -1,173 +1,151 @@
-import { Grid3x3, List, ChevronDown } from 'lucide-react';
-import { formatTotalDuration } from '@/app/utils/format';
-import { AlbumCard } from '@/app/components/AlbumCard';
-import { usePlayer } from '@/app/context/PlayerContext';
-import { useAlbums } from '@/app/hooks/useAlbums';
+import { ChevronDown, Disc3, Grid3X3, List } from 'lucide-react';
 import { useState } from 'react';
+import { AlbumCard } from '@/app/components/AlbumCard';
+import { useAlbums } from '@/app/hooks/useAlbums';
+import { formatTotalDuration } from '@/app/utils/format';
 
 interface LibraryPageProps {
   onNavigateToAlbum: (albumId: string) => void;
 }
 
-export const LibraryPage = ({ onNavigateToAlbum }: LibraryPageProps) => {
-  const { playTrack } = usePlayer();
-  const { data: albums = [], isLoading } = useAlbums();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filterType, setFilterType] = useState<'all' | 'albums' | 'artists' | 'playlists'>('all');
+type LibraryFilter = 'all' | 'albums' | 'artists' | 'playlists';
 
-  const filters = [
-    { id: 'all', label: 'All' },
-    { id: 'albums', label: 'Albums' },
-    { id: 'artists', label: 'Artists' },
-    { id: 'playlists', label: 'Playlists' },
-  ];
+const filters: Array<{ id: LibraryFilter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'albums', label: 'Albums' },
+  { id: 'artists', label: 'Artists' },
+  { id: 'playlists', label: 'Playlists' },
+];
+
+export const LibraryPage = ({ onNavigateToAlbum }: LibraryPageProps) => {
+  const albumsQuery = useAlbums();
+  const albums = albumsQuery.data ?? [];
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [filterType, setFilterType] = useState<LibraryFilter>('all');
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" style={{ paddingBottom: '120px' }}>
-      {/* Header */}
-      <div className="p-8 pb-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 style={{ color: 'var(--text-primary)' }}>Your Library</h1>
-          <div className="flex items-center gap-3">
-            <div
-              className="flex items-center rounded-md overflow-hidden"
-              style={{ border: '1px solid var(--border-default)' }}
-            >
-              <button
-                onClick={() => setViewMode('grid')}
-                className="p-2 transition-colors"
-                style={{
-                  background: viewMode === 'grid' ? 'var(--accent-primary)' : 'transparent',
-                  color: viewMode === 'grid' ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-                }}
-              >
-                <Grid3x3 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className="p-2 transition-colors"
-                style={{
-                  background: viewMode === 'list' ? 'var(--accent-primary)' : 'transparent',
-                  color: viewMode === 'list' ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-                }}
-              >
-                <List className="w-5 h-5" />
-              </button>
-            </div>
+    <div className="page" data-screen-label="Library">
+      <header className="page-head">
+        <h1 className="serif">Your <em>library</em></h1>
+        <p className="lead">
+          {albumsQuery.isLoading
+            ? 'Counting your collection…'
+            : `${albums.length} ${albums.length === 1 ? 'record' : 'records'} in your collection`}
+        </p>
+      </header>
 
-            <button
-              className="flex items-center gap-2 px-4 py-2 rounded-md transition-colors"
-              style={{
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-default)',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-secondary)'; }}
-            >
-              <span className="text-sm">Sort by: Date Added</span>
-              <ChevronDown className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
+      <div className="library-controls">
+        <div className="chip-row" aria-label="Library type">
           {filters.map((filter) => (
             <button
               key={filter.id}
-              onClick={() => setFilterType(filter.id as any)}
-              className="px-4 py-1.5 rounded-full text-sm font-medium transition-all"
-              style={{
-                background: filterType === filter.id ? 'var(--accent-primary)' : 'var(--bg-secondary)',
-                color: filterType === filter.id ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-                border: `1px solid ${filterType === filter.id ? 'var(--accent-primary)' : 'var(--border-default)'}`,
-              }}
+              type="button"
+              className={`chip${filterType === filter.id ? ' active' : ''}`}
+              aria-pressed={filterType === filter.id}
+              onClick={() => setFilterType(filter.id)}
             >
               {filter.label}
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-8">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-24">
-            <div className="animate-pulse" style={{ color: 'var(--text-muted)' }}>Loading...</div>
-          </div>
-        ) : albums.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <h3 className="mb-2" style={{ color: 'var(--text-primary)' }}>No albums yet</h3>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Upload music to build your library</p>
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-5 gap-4 p-2 pb-8">
-            {albums.map((album) => (
-              <AlbumCard
-                key={album.id}
-                album={album}
-                onClick={() => onNavigateToAlbum(album.id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div
-            className="rounded-lg overflow-hidden mb-8"
-            style={{ background: 'var(--bg-secondary)' }}
-          >
-            <div
-              className="grid grid-cols-12 gap-4 px-4 py-3 text-xs uppercase tracking-wider"
-              style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
+        <div className="control-right">
+          <button type="button" className="chip" aria-label="Sort library by date added">
+            Sort: Date added <ChevronDown size={14} />
+          </button>
+          <div className="view-toggle" role="group" aria-label="Library view">
+            <button
+              type="button"
+              className={viewMode === 'grid' ? 'on' : ''}
+              aria-label="Grid view"
+              aria-pressed={viewMode === 'grid'}
+              onClick={() => setViewMode('grid')}
             >
-              <div className="col-span-1">Cover</div>
-              <div className="col-span-4">Title</div>
-              <div className="col-span-3">Artist</div>
-              <div className="col-span-2">Tracks</div>
-              <div className="col-span-2">Duration</div>
-            </div>
-
-            {albums.map((album, index) => (
-              <div
-                key={album.id}
-                className="grid grid-cols-12 gap-4 px-4 py-3 items-center cursor-pointer group transition-all"
-                style={{
-                  background: index % 2 === 0 ? 'var(--bg-secondary)' : '#232326',
-                  borderLeft: '3px solid transparent',
-                }}
-                onClick={() => onNavigateToAlbum(album.id)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-tertiary)';
-                  e.currentTarget.style.borderLeftColor = 'var(--accent-primary)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = index % 2 === 0 ? 'var(--bg-secondary)' : '#232326';
-                  e.currentTarget.style.borderLeftColor = 'transparent';
-                }}
-              >
-                <div className="col-span-1">
-                  <img
-                    src={album.artwork_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=400&fit=crop'}
-                    alt={album.title}
-                    className="w-12 h-12 rounded"
-                  />
-                </div>
-                <div className="col-span-4">
-                  <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{album.title}</div>
-                </div>
-                <div className="col-span-3">
-                  <div style={{ color: 'var(--text-secondary)' }}>{album.artist}</div>
-                </div>
-                <div className="col-span-2">
-                  <div style={{ color: 'var(--text-secondary)' }}>{album.track_count}</div>
-                </div>
-                <div className="col-span-2">
-                  <div style={{ color: 'var(--text-secondary)' }}>{formatTotalDuration(album.duration)}</div>
-                </div>
-              </div>
-            ))}
+              <Grid3X3 size={16} />
+            </button>
+            <button
+              type="button"
+              className={viewMode === 'list' ? 'on' : ''}
+              aria-label="List view"
+              aria-pressed={viewMode === 'list'}
+              onClick={() => setViewMode('list')}
+            >
+              <List size={16} />
+            </button>
           </div>
-        )}
+        </div>
       </div>
+
+      {albumsQuery.isLoading ? (
+        <div className="page-state" role="status">
+          <Disc3 className="loading-disc" size={38} />
+          <p>Gathering your records…</p>
+        </div>
+      ) : albumsQuery.isError ? (
+        <div className="page-state error" role="alert">
+          <h2>We couldn’t load your library.</h2>
+          <p>{albumsQuery.error instanceof Error ? albumsQuery.error.message : 'Please try again.'}</p>
+          <button type="button" className="btn-clay" onClick={() => void albumsQuery.refetch()}>
+            Try again
+          </button>
+        </div>
+      ) : albums.length === 0 ? (
+        <div className="empty">
+          <Disc3 size={42} strokeWidth={1.2} />
+          <p className="serif">No records yet.</p>
+          <span className="small">Upload music to build your library.</span>
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className="album-grid lg">
+          {albums.map((album) => (
+            <AlbumCard
+              key={album.id}
+              album={album}
+              onClick={() => onNavigateToAlbum(album.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="list-table">
+          <div className="lt-head mono" aria-hidden="true">
+            <span>#</span>
+            <span>Title</span>
+            <span>Artist</span>
+            <span>Year</span>
+            <span>Tracks</span>
+            <span>Length</span>
+          </div>
+          {albums.map((album, index) => (
+            <button
+              key={album.id}
+              type="button"
+              className="lt-row"
+              style={{ width: '100%', textAlign: 'left' }}
+              onClick={() => onNavigateToAlbum(album.id)}
+            >
+              <span className="mono small dim">{String(index + 1).padStart(2, '0')}</span>
+              <span className="lt-title">
+                {album.artwork_url ? (
+                  <img src={album.artwork_url} alt="" />
+                ) : (
+                  <span
+                    className="artwork-fallback"
+                    aria-hidden="true"
+                    style={{ width: 36, height: 36, borderRadius: 4, flex: '0 0 auto' }}
+                  >
+                    <Disc3 size={18} strokeWidth={1.2} />
+                  </span>
+                )}
+                <span>{album.title}</span>
+              </span>
+              <span className="dim">{album.artist}</span>
+              <span className="mono small dim">{album.year ?? '—'}</span>
+              <span className="mono small dim">{album.track_count}</span>
+              <span className="mono small dim">{formatTotalDuration(album.duration)}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,163 +1,151 @@
-import { Disc3 } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { useLogin, useRegister } from '@/app/hooks/useAuth';
 
+type AuthMode = 'login' | 'register';
+
+const getAuthError = (error: unknown) => {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return 'Something went wrong. Please try again.';
+  }
+
+  const response = error.response;
+  if (typeof response !== 'object' || response === null || !('data' in response)) {
+    return 'Something went wrong. Please try again.';
+  }
+
+  const data = response.data;
+  if (typeof data !== 'object' || data === null || !('error' in data)) {
+    return 'Something went wrong. Please try again.';
+  }
+
+  return typeof data.error === 'string' ? data.error : 'Something went wrong. Please try again.';
+};
+
 export const LoginPage = () => {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-
   const login = useLogin();
   const register = useRegister();
 
   const isLoading = login.isPending || register.isPending;
   const error = login.error || register.error;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const changeMode = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    login.reset();
+    register.reset();
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (mode === 'login') {
-      login.mutate({ email, password });
-    } else {
-      register.mutate({ email, password, display_name: displayName });
+      login.mutate({ email: email.trim(), password });
+      return;
     }
+    register.mutate({ email: email.trim(), password, display_name: displayName.trim() });
   };
 
   return (
-    <div
-      className="flex items-center justify-center h-screen"
-      style={{ background: 'var(--bg-deep)' }}
-    >
-      <div
-        className="w-full max-w-sm p-8 rounded-xl"
-        style={{
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-default)',
-        }}
-      >
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div
-            className="flex items-center justify-center rounded-full"
-            style={{
-              width: '48px',
-              height: '48px',
-              background: 'var(--accent-primary)',
-              boxShadow: '0 0 24px rgba(245, 166, 35, 0.3)',
-            }}
-          >
-            <Disc3 className="w-7 h-7 animate-spin-slow" style={{ color: 'var(--text-on-accent)' }} />
+    <main className="auth-page" data-screen-label="Authentication">
+      <section className="auth-ambient" aria-label="Vinil introduction">
+        <div className="auth-brand">
+          <span className="vinil-logo-disc" aria-hidden="true"><span /></span>
+          <span className="brand-word">Vinil</span>
+        </div>
+        <div className="auth-copy">
+          <p className="eyebrow mono">Your personal listening room</p>
+          <h1 className="serif">Keep the music that <em>stays with you.</em></h1>
+          <p className="lead">
+            Collect records, play them in full fidelity, and carry your library offline.
+          </p>
+        </div>
+      </section>
+
+      <section className="auth-panel">
+        <div className="auth-form">
+          <p className="eyebrow mono">Welcome to Vinil</p>
+          <h2 className="serif">{mode === 'login' ? 'Welcome back.' : 'Start a collection.'}</h2>
+          <p className="lead">
+            {mode === 'login'
+              ? 'Sign in to return to your library.'
+              : 'Create an account for your personal music library.'}
+          </p>
+
+          <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
+            <button
+              className={`auth-tab${mode === 'login' ? ' active' : ''}`}
+              type="button"
+              role="tab"
+              aria-selected={mode === 'login'}
+              onClick={() => changeMode('login')}
+            >
+              Sign in
+            </button>
+            <button
+              className={`auth-tab${mode === 'register' ? ' active' : ''}`}
+              type="button"
+              role="tab"
+              aria-selected={mode === 'register'}
+              onClick={() => changeMode('register')}
+            >
+              Create account
+            </button>
           </div>
-          <span className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            Vinil
-          </span>
-        </div>
 
-        {/* Tabs */}
-        <div
-          className="flex mb-6 rounded-lg overflow-hidden"
-          style={{ background: 'var(--bg-deep)' }}
-        >
-          <button
-            onClick={() => setMode('login')}
-            className="flex-1 py-2.5 text-sm font-medium transition-all"
-            style={{
-              background: mode === 'login' ? 'var(--accent-primary)' : 'transparent',
-              color: mode === 'login' ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-            }}
-          >
-            Sign In
-          </button>
-          <button
-            onClick={() => setMode('register')}
-            className="flex-1 py-2.5 text-sm font-medium transition-all"
-            style={{
-              background: mode === 'register' ? 'var(--accent-primary)' : 'transparent',
-              color: mode === 'register' ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-            }}
-          >
-            Create Account
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'register' && (
-            <div>
-              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                Display Name
+          <form className="auth-fields" onSubmit={handleSubmit}>
+            {mode === 'register' && (
+              <label className="auth-field">
+                Display name
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  placeholder="How should we address you?"
+                  autoComplete="name"
+                  required
+                />
               </label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Your name"
-                required
-                className="w-full px-4 py-2.5 rounded-md text-sm"
-                style={{
-                  background: 'var(--bg-deep)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)',
-                }}
-              />
-            </div>
-          )}
-          <div>
-            <label className="block text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+            )}
+            <label className="auth-field">
               Email
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
             </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              className="w-full px-4 py-2.5 rounded-md text-sm"
-              style={{
-                background: 'var(--bg-deep)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)',
-              }}
-            />
-          </div>
-          <div>
-            <label className="block text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+            <label className="auth-field">
               Password
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                required
+              />
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              required
-              className="w-full px-4 py-2.5 rounded-md text-sm"
-              style={{
-                background: 'var(--bg-deep)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)',
-              }}
-            />
-          </div>
 
-          {error && (
-            <p className="text-xs" style={{ color: 'var(--error)' }}>
-              {(error as any)?.response?.data?.error || 'Something went wrong'}
-            </p>
-          )}
+            {error && <p className="form-error" role="alert">{getAuthError(error)}</p>}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-2.5 rounded-md text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
-            style={{
-              background: 'var(--accent-primary)',
-              color: 'var(--text-on-accent)',
-              opacity: isLoading ? 0.7 : 1,
-            }}
-          >
-            {isLoading ? 'Loading...' : mode === 'login' ? 'Sign In' : 'Create Account'}
-          </button>
-        </form>
-      </div>
-    </div>
+            <button className="btn-clay auth-submit" type="submit" disabled={isLoading}>
+              {isLoading
+                ? mode === 'login' ? 'Signing in…' : 'Creating account…'
+                : mode === 'login' ? 'Enter your library' : 'Create your library'}
+              {!isLoading && <ArrowRight size={16} />}
+            </button>
+          </form>
+
+          <p className="auth-note mono">Private by design · Your collection stays yours</p>
+        </div>
+      </section>
+    </main>
   );
 };

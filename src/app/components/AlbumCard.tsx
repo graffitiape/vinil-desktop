@@ -1,93 +1,160 @@
-import { Play } from "lucide-react";
-import type { Album } from "@/app/types/api";
-import { useState } from "react";
+import { Disc3, Play } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { usePlayer } from '@/app/context/PlayerContext';
+import { albumRepository } from '@/app/repositories/albumRepository';
+import type { Album } from '@/app/types/api';
 
 interface AlbumCardProps {
   album: Album;
   onClick?: () => void;
-  onPlay?: () => void;
+  onPlay?: () => void | Promise<void>;
+  dense?: boolean;
 }
 
-export const AlbumCard = ({ album, onClick, onPlay }: AlbumCardProps) => {
+export const AlbumCard = ({
+  album,
+  onClick,
+  onPlay,
+  dense = false,
+}: AlbumCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [hasFocusWithin, setHasFocusWithin] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [canHover, setCanHover] = useState(() => (
+    typeof window === 'undefined'
+      ? true
+      : window.matchMedia('(hover: hover) and (pointer: fine)').matches
+  ));
+  const queryClient = useQueryClient();
+  const { playTrack } = usePlayer();
+
+  useEffect(() => {
+    const hoverQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const handleChange = (event: MediaQueryListEvent) => setCanHover(event.matches);
+    setCanHover(hoverQuery.matches);
+    hoverQuery.addEventListener('change', handleChange);
+    return () => hoverQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  const handlePlay = async () => {
+    if (isStarting) return;
+    setIsStarting(true);
+
+    try {
+      if (onPlay) {
+        await onPlay();
+        return;
+      }
+
+      const albumDetail = await queryClient.fetchQuery({
+        queryKey: ['albums', album.id],
+        queryFn: () => albumRepository.get(album.id),
+      });
+      const firstTrack = albumDetail.tracks[0];
+      if (firstTrack) playTrack(firstTrack, albumDetail.tracks);
+    } catch (error) {
+      console.error(`Failed to start album ${album.id}:`, error);
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const showPlay = isHovered || hasFocusWithin || !canHover;
 
   return (
-    <div
-      className="group cursor-pointer transition-all duration-1000 relative"
-      style={{
-        background: "var(--bg-secondary)",
-        borderRadius: "8px",
-        padding: "12px",
-        border: "1px solid transparent",
-        transform: isHovered ? "translateY(-4px)" : "translateY(0)",
-        boxShadow: isHovered
-          ? "0 0 20px rgba(245, 166, 35, 0.4), 0 0 0 1px rgba(245, 166, 35, 0.6), inset 0 0 8px rgba(245, 166, 35, 0.1), 0 2px 0 0 rgba(245, 166, 35, 0.3), 0 -2px 0 0 rgba(245, 166, 35, 0.3), 2px 0 0 0 rgba(245, 166, 35, 0.3), -2px 0 0 0 rgba(245, 166, 35, 0.3), 3px 3px 0 0 rgba(245, 166, 35, 0.2), -3px 3px 0 0 rgba(245, 166, 35, 0.2), 3px -3px 0 0 rgba(245, 166, 35, 0.2), -3px -3px 0 0 rgba(245, 166, 35, 0.2), 5px 5px 4px 0 rgba(245, 166, 35, 0.15), -5px 5px 4px 0 rgba(245, 166, 35, 0.15), 5px -5px 4px 0 rgba(245, 166, 35, 0.15), -5px -5px 4px 0 rgba(245, 166, 35, 0.15), 7px 0 6px 0 rgba(245, 166, 35, 0.1), -7px 0 6px 0 rgba(245, 166, 35, 0.1), 0 7px 6px 0 rgba(245, 166, 35, 0.1), 0 -7px 6px 0 rgba(245, 166, 35, 0.1)"
-          : "0 2px 8px rgba(0, 0, 0, 0.4)",
-      }}
+    <article
+      className="album-card"
+      aria-label={`${album.title} by ${album.artist}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={onClick}
+      onFocusCapture={() => setHasFocusWithin(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setHasFocusWithin(false);
+        }
+      }}
     >
-      <div className="relative mb-3">
-        {/* Album Art with Vinyl Edge */}
-        <div className="relative">
-          <img
-            src={album.artwork_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=400&fit=crop'}
-            alt={album.title}
-            className="w-full aspect-square object-cover rounded"
-          />
-          {/* Vinyl edge peeking out */}
-          {isHovered && (
-            <div
-              className="absolute -right-1 top-2 bottom-2 w-3 rounded-r"
-              style={{
-                background: "var(--vinyl-black)",
-                borderTop: "1px solid var(--vinyl-highlight)",
-                borderBottom: "1px solid var(--vinyl-highlight)",
-              }}
-            />
-          )}
-        </div>
+      {onClick && (
+        <button
+          type="button"
+          aria-label={`Open ${album.title} by ${album.artist}`}
+          onClick={onClick}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 1,
+            borderRadius: 'var(--radius)',
+          }}
+        >
+          <span className="visually-hidden">Open {album.title}</span>
+        </button>
+      )}
 
-        {/* Play Button Overlay */}
-        {isHovered && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onPlay?.();
-            }}
-            className="absolute bottom-2 right-2 flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
+      <div className="album-art-wrap">
+        {album.artwork_url ? (
+          <img src={album.artwork_url} alt={album.title} className="album-art" />
+        ) : (
+          <div
+            className="album-art"
+            role="img"
+            aria-label={`${album.title} has no artwork`}
             style={{
-              width: "48px",
-              height: "48px",
-              background: "var(--accent-primary)",
-              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.5)",
+              background: 'var(--paper-3)',
+              color: 'var(--ink-3)',
+              display: 'grid',
+              placeItems: 'center',
             }}
           >
-            <Play
-              className="w-5 h-5 ml-0.5"
-              style={{ color: "var(--text-on-accent)" }}
-              fill="var(--text-on-accent)"
-            />
-          </button>
+            <Disc3 size={40} strokeWidth={1.2} />
+          </div>
         )}
+
+        <div
+          className="album-vinyl"
+          style={{ transform: isHovered ? 'translateX(14%)' : 'translateX(2%)' }}
+          aria-hidden="true"
+        >
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="49" fill="#1a1714" />
+            <g fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.3">
+              {[12, 18, 24, 30, 36, 42].map((radius) => (
+                <circle key={radius} cx="50" cy="50" r={radius} />
+              ))}
+            </g>
+            <circle cx="50" cy="50" r="12" fill="var(--clay)" />
+            <circle cx="50" cy="50" r="1" fill="#0a0908" />
+          </svg>
+        </div>
+
+        <button
+          type="button"
+          className="album-play"
+          aria-label={`Play ${album.title}`}
+          aria-busy={isStarting}
+          disabled={isStarting}
+          onClick={() => void handlePlay()}
+          style={{
+            zIndex: 2,
+            opacity: showPlay ? 1 : 0,
+            transform: showPlay ? 'translateY(0)' : 'translateY(8px)',
+          }}
+        >
+          <Play size={16} fill="currentColor" />
+        </button>
       </div>
 
-      {/* Album Info */}
-      <div>
-        <h4
-          className="font-semibold text-sm mb-1 truncate"
-          style={{ color: "var(--text-primary)" }}
-        >
-          {album.title}
-        </h4>
-        <p
-          className="text-xs truncate"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          {album.artist}
-        </p>
+      <div className="album-meta">
+        <div className="album-title">{album.title}</div>
+        <div className="album-artist">{album.artist}</div>
+        {!dense && (album.year || album.genre) && (
+          <div className="album-line">
+            {album.year && <span className="mono">{album.year}</span>}
+            {album.year && album.genre && <span className="dot">·</span>}
+            {album.genre && <span>{album.genre}</span>}
+          </div>
+        )}
       </div>
-    </div>
+    </article>
   );
 };

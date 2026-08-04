@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { authRepository } from '@/app/repositories/authRepository';
 import type { User } from '@/app/types/api';
 
@@ -21,6 +22,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -66,23 +68,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Listen for forced logout (401)
   useEffect(() => {
     const handleLogout = () => {
+      queryClient.clear();
       setUser(null);
     };
     window.addEventListener('vinil:logout', handleLogout);
     return () => window.removeEventListener('vinil:logout', handleLogout);
-  }, []);
+  }, [queryClient]);
 
   const setAuth = useCallback((token: string, user: User) => {
+    queryClient.clear();
     localStorage.setItem('vinil_token', token);
     localStorage.setItem('vinil_user', JSON.stringify(user));
     setUser(user);
-  }, []);
+  }, [queryClient]);
 
   const logout = useCallback(() => {
+    queryClient.clear();
     localStorage.removeItem('vinil_token');
     localStorage.removeItem('vinil_user');
     setUser(null);
-  }, []);
+  }, [queryClient]);
 
   return (
     <AuthContext.Provider

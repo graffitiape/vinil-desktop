@@ -1,182 +1,245 @@
-import { Search as SearchIcon, X, Clock } from 'lucide-react';
+import { Clock, Disc3, Search as SearchIcon, X } from 'lucide-react';
+import { useState, type CSSProperties } from 'react';
 import { AlbumCard } from '@/app/components/AlbumCard';
 import { usePlayer } from '@/app/context/PlayerContext';
 import { useSearch } from '@/app/hooks/useSearch';
-import { useState } from 'react';
 import { formatDuration } from '@/app/utils/format';
 
 interface SearchPageProps {
   onNavigateToAlbum: (albumId: string) => void;
 }
+type SearchTab = 'all' | 'albums' | 'tracks' | 'artists';
+const tabs: Array<{ id: SearchTab; label: string }> = [
+  { id: 'all', label: 'All' }, { id: 'albums', label: 'Albums' },
+  { id: 'tracks', label: 'Tracks' }, { id: 'artists', label: 'Artists' },
+];
+const recentSearches = ['Tame Impala', 'Jazz', 'Electronic', 'Acoustic Sessions'];
+const genres = [
+  { name: 'Jazz', hue: 38 }, { name: 'Electronic', hue: 220 },
+  { name: 'Folk', hue: 80 }, { name: 'Hip Hop', hue: 12 },
+  { name: 'Synthwave', hue: 280 }, { name: 'Ambient', hue: 200 },
+  { name: 'Techno', hue: 320 }, { name: 'Chillwave', hue: 165 },
+];
 
 export const SearchPage = ({ onNavigateToAlbum }: SearchPageProps) => {
   const { playTrack } = usePlayer();
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'albums' | 'tracks' | 'artists'>('all');
-  const { data: results, isLoading } = useSearch(searchQuery);
+  const [activeTab, setActiveTab] = useState<SearchTab>('all');
+  const trimmedQuery = searchQuery.trim();
+  const search = useSearch(trimmedQuery);
+  const albums = search.data?.albums ?? [];
+  const tracks = search.data?.tracks ?? [];
+  const artists = Array.from(new Set([
+    ...albums.map((album) => album.artist),
+    ...tracks.map((track) => track.artist),
+  ])).sort((left, right) => left.localeCompare(right));
+  const hasVisibleResults = activeTab === 'all'
+    ? albums.length > 0 || tracks.length > 0
+    : activeTab === 'albums'
+      ? albums.length > 0
+      : activeTab === 'tracks'
+        ? tracks.length > 0
+        : artists.length > 0;
 
-  const recentSearches = ['Electronic', 'Jazz', 'Rock'];
-
-  const filteredAlbums = results?.albums || [];
-  const filteredTracks = results?.tracks || [];
-
-  const tabs = [
-    { id: 'all', label: 'All' },
-    { id: 'albums', label: 'Albums' },
-    { id: 'tracks', label: 'Tracks' },
-    { id: 'artists', label: 'Artists' },
-  ];
+  const chooseSuggestion = (value: string) => {
+    setSearchQuery(value);
+    setActiveTab('all');
+  };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" style={{ paddingBottom: '120px' }}>
-      {/* Search Input */}
-      <div className="p-8 pb-6">
-        <div className="relative">
-          <SearchIcon
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5"
-            style={{ color: 'var(--text-muted)' }}
-          />
-          <input
-            type="text"
-            placeholder="Search your library..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-12 py-4 rounded-md text-base transition-all"
-            style={{
-              background: 'var(--bg-deep)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded transition-colors"
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-            >
-              <X className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
-            </button>
-          )}
-        </div>
+    <div className="page" data-screen-label="Search">
+      <header className="page-head">
+        <h1 className="serif"><em>Search</em> your library</h1>
+        <p className="lead">Find a record, artist, or track in your collection.</p>
+      </header>
+
+      <div className="search-input-wrap">
+        <SearchIcon size={20} aria-hidden="true" />
+        <input
+          autoFocus
+          type="search"
+          className="search-input"
+          placeholder="Search albums, artists, tracks…"
+          aria-label="Search your library"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Clear search"
+            onClick={() => setSearchQuery('')}
+          >
+            <X size={17} />
+          </button>
+        )}
       </div>
 
-      {/* Recent Searches (when no query) */}
-      {!searchQuery && (
-        <div className="px-8 pb-6">
-          <h3 className="mb-4" style={{ color: 'var(--text-primary)' }}>Recent Searches</h3>
-          <div className="flex flex-wrap gap-2">
-            {recentSearches.map((search, index) => (
-              <button
-                key={index}
-                onClick={() => setSearchQuery(search)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full transition-colors"
-                style={{ background: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-tertiary)';
-                  e.currentTarget.style.color = 'var(--text-primary)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-secondary)';
-                  e.currentTarget.style.color = 'var(--text-secondary)';
-                }}
-              >
-                <Clock className="w-4 h-4" />
-                <span className="text-sm">{search}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Search Results */}
-      {searchQuery && (
+      {!trimmedQuery ? (
         <>
-          <div className="px-8 pb-4">
-            <div
-              className="flex items-center gap-1 p-1 rounded-lg inline-flex"
-              style={{ background: 'var(--bg-secondary)' }}
-            >
-              {tabs.map((tab) => (
+          <section className="row" aria-labelledby="recent-searches-heading">
+            <h3 id="recent-searches-heading" className="serif">Recent searches</h3>
+            <div className="recent-chips">
+              {recentSearches.map((item) => (
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className="px-4 py-2 rounded-md text-sm font-medium transition-all relative"
-                  style={{
-                    background: activeTab === tab.id ? 'var(--accent-primary)' : 'transparent',
-                    color: activeTab === tab.id ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-                  }}
+                  key={item}
+                  type="button"
+                  className="chip"
+                  onClick={() => chooseSuggestion(item)}
                 >
-                  {tab.label}
+                  <Clock size={13} />
+                  {item}
                 </button>
               ))}
             </div>
-          </div>
+          </section>
 
-          <div className="flex-1 overflow-y-auto px-8">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="animate-pulse" style={{ color: 'var(--text-muted)' }}>Searching...</div>
-              </div>
-            ) : (
-              <>
-                {(activeTab === 'all' || activeTab === 'albums') && filteredAlbums.length > 0 && (
-                  <div className="mb-8">
-                    <h3 className="mb-4" style={{ color: 'var(--text-primary)' }}>Albums</h3>
-                    <div className="grid grid-cols-5 gap-4 p-2">
-                      {filteredAlbums.map((album) => (
-                        <AlbumCard
-                          key={album.id}
-                          album={album}
-                          onClick={() => onNavigateToAlbum(album.id)}
-                        />
-                      ))}
-                    </div>
+          <section className="row" aria-labelledby="genres-heading">
+            <h3 id="genres-heading" className="serif">Browse by genre</h3>
+            <div className="genre-grid">
+              {genres.map((genre) => (
+                <button
+                  key={genre.name}
+                  type="button"
+                  className="serif genre-card"
+                  style={{ '--gh': genre.hue } as CSSProperties}
+                  onClick={() => chooseSuggestion(genre.name)}
+                >
+                  {genre.name}
+                </button>
+              ))}
+            </div>
+          </section>
+        </>
+      ) : (
+        <>
+          <nav className="chip-row" aria-label="Search result type" style={{ marginBottom: 28 }}>
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`chip${activeTab === tab.id ? ' active' : ''}`}
+                aria-pressed={activeTab === tab.id}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {search.isLoading || search.isFetching ? (
+            <div className="page-state" role="status">
+              <Disc3 className="loading-disc" size={38} />
+              <p>Searching your shelves…</p>
+            </div>
+          ) : search.isError ? (
+            <div className="page-state error" role="alert">
+              <h2>Search is unavailable.</h2>
+              <p>{search.error instanceof Error ? search.error.message : 'Please try again.'}</p>
+              <button type="button" className="btn-clay" onClick={() => void search.refetch()}>
+                Try again
+              </button>
+            </div>
+          ) : !hasVisibleResults ? (
+            <div className="empty">
+              <SearchIcon size={42} strokeWidth={1.2} />
+              <p className="serif">Nothing matched “{trimmedQuery}”.</p>
+              <span className="small">Try another title, artist, track, or genre.</span>
+            </div>
+          ) : (
+            <>
+              {(activeTab === 'all' || activeTab === 'albums') && albums.length > 0 && (
+                <section className="row" aria-labelledby="album-results-heading">
+                  <div className="row-head">
+                    <h3 id="album-results-heading" className="serif">Albums</h3>
+                    <span className="mono small dim">{albums.length} found</span>
                   </div>
-                )}
+                  <div className="album-grid">
+                    {albums.map((album) => (
+                      <AlbumCard
+                        key={album.id}
+                        album={album}
+                        onClick={() => onNavigateToAlbum(album.id)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
 
-                {(activeTab === 'all' || activeTab === 'tracks') && filteredTracks.length > 0 && (
-                  <div className="mb-8">
-                    <h3 className="mb-4" style={{ color: 'var(--text-primary)' }}>Tracks</h3>
-                    <div className="rounded-lg overflow-hidden" style={{ background: 'var(--bg-secondary)' }}>
-                      {filteredTracks.map((track) => (
-                        <div
-                          key={track.id}
-                          className="flex items-center gap-4 px-4 py-3 cursor-pointer group transition-colors"
-                          onClick={() => playTrack(track)}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              {(activeTab === 'all' || activeTab === 'tracks') && tracks.length > 0 && (
+                <section className="row" aria-labelledby="track-results-heading">
+                  <div className="row-head">
+                    <h3 id="track-results-heading" className="serif">Tracks</h3>
+                    <span className="mono small dim">{tracks.length} found</span>
+                  </div>
+                  <div className="track-list-card">
+                    {tracks.map((track) => (
+                      <button
+                        key={track.id}
+                        type="button"
+                        className="tl-row"
+                        style={{ width: '100%', textAlign: 'left' }}
+                        onClick={() => playTrack(track, tracks)}
+                      >
+                        {track.artwork_url ? (
+                          <img src={track.artwork_url} alt="" />
+                        ) : (
+                          <span
+                            className="artwork-fallback"
+                            aria-hidden="true"
+                            style={{ width: 40, height: 40, borderRadius: 4, flex: '0 0 auto' }}
+                          >
+                            <Disc3 size={20} strokeWidth={1.2} />
+                          </span>
+                        )}
+                        <span className="tl-meta">
+                          <span className="tl-title">{track.title}</span>
+                          <span className="tl-sub" style={{ display: 'block' }}>
+                            {track.artist}{track.genre && <><span className="dot">·</span>{track.genre}</>}
+                          </span>
+                        </span>
+                        <span className="mono small dim">{formatDuration(track.duration)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {activeTab === 'artists' && artists.length > 0 && (
+                <section className="row" aria-labelledby="artist-results-heading">
+                  <div className="row-head">
+                    <h3 id="artist-results-heading" className="serif">Artists</h3>
+                    <span className="mono small dim">{artists.length} found</span>
+                  </div>
+                  <div className="track-list-card">
+                    {artists.map((artist) => (
+                      <button
+                        key={artist}
+                        type="button"
+                        className="tl-row"
+                        style={{ width: '100%', textAlign: 'left' }}
+                        onClick={() => chooseSuggestion(artist)}
+                      >
+                        <span
+                          className="artwork-fallback"
+                          aria-hidden="true"
+                          style={{ width: 40, height: 40, borderRadius: '50%', flex: '0 0 auto' }}
                         >
-                          <img
-                            src={track.artwork_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=400&fit=crop'}
-                            alt={track.title}
-                            className="w-12 h-12 rounded"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{track.title}</div>
-                            <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>{track.artist}</div>
-                          </div>
-                          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                            {formatDuration(track.duration)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                          <Disc3 size={20} strokeWidth={1.2} />
+                        </span>
+                        <span className="tl-meta">
+                          <span className="tl-title">{artist}</span>
+                          <span className="tl-sub" style={{ display: 'block' }}>Artist</span>
+                        </span>
+                        <span className="mono small dim" aria-hidden="true">→</span>
+                      </button>
+                    ))}
                   </div>
-                )}
-
-                {filteredAlbums.length === 0 && filteredTracks.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-16">
-                    <SearchIcon className="w-16 h-16 mb-4" style={{ color: 'var(--text-muted)' }} />
-                    <h3 className="mb-2" style={{ color: 'var(--text-primary)' }}>No results for "{searchQuery}"</h3>
-                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Try different keywords</p>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+                </section>
+              )}
+            </>
+          )}
         </>
       )}
     </div>

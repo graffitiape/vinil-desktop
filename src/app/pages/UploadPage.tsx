@@ -1,347 +1,218 @@
-import { Upload as UploadIcon, Image, X, Check, Plus } from 'lucide-react';
-import { useState, useRef } from 'react';
-import { useUploadTrack } from '@/app/hooks/useUpload';
-import { useAlbums, useCreateAlbum } from '@/app/hooks/useAlbums';
+import { Disc3, Plus, Upload as UploadIcon } from 'lucide-react';
+import { useRef } from 'react';
+import type { CSSProperties } from 'react';
+import { DropzoneRecord, UploadQueue } from '@/app/pages/vinilUploadParts';
+import { NEW_ALBUM_VALUE, useVinilUploadFlow } from '@/app/pages/useVinilUploadFlow';
 
-interface FileUpload {
-  file: File;
-  name: string;
-  size: string;
-  progress: number;
-  status: 'pending' | 'uploading' | 'complete' | 'error';
-  error?: string;
-}
+const SELECT_STYLE: CSSProperties = {
+  width: '100%',
+  padding: '10px 12px',
+  borderRadius: 8,
+  background: 'var(--paper-4)',
+  border: '1px solid var(--rule)',
+  color: 'var(--ink)',
+};
 
 export const UploadPage = () => {
-  const [isDragging, setIsDragging] = useState(false);
-  const [files, setFiles] = useState<FileUpload[]>([]);
-  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
-  const [showNewAlbum, setShowNewAlbum] = useState(false);
-  const [newAlbumTitle, setNewAlbumTitle] = useState('');
-  const [newAlbumArtist, setNewAlbumArtist] = useState('');
-  const [newAlbumGenre, setNewAlbumGenre] = useState('');
-  const [newAlbumYear, setNewAlbumYear] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const { data: albums = [] } = useAlbums();
-  const createAlbum = useCreateAlbum();
-  const uploadTrack = useUploadTrack();
-
-  const formatSize = (bytes: number) => {
-    if (bytes > 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  };
-
-  const addFiles = (fileList: FileList | File[]) => {
-    const audioFiles = Array.from(fileList).filter((f) =>
-      f.type.startsWith('audio/') || /\.(flac|wav|mp3|aac|ogg|alac)$/i.test(f.name)
-    );
-    const newFiles: FileUpload[] = audioFiles.map((f) => ({
-      file: f,
-      name: f.name,
-      size: formatSize(f.size),
-      progress: 0,
-      status: 'pending',
-    }));
-    setFiles((prev) => [...prev, ...newFiles]);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    addFiles(e.dataTransfer.files);
-  };
-
-  const handleBrowse = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) addFiles(e.target.files);
-  };
-
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleCreateAlbumAndUpload = async () => {
-    let albumId = selectedAlbumId;
-
-    if (showNewAlbum && newAlbumTitle && newAlbumArtist) {
-      const album = await createAlbum.mutateAsync({
-        title: newAlbumTitle,
-        artist: newAlbumArtist,
-        genre: newAlbumGenre || undefined,
-        year: newAlbumYear ? parseInt(newAlbumYear) : undefined,
-      });
-      albumId = album.id;
-      setSelectedAlbumId(album.id);
-      setShowNewAlbum(false);
-    }
-
-    if (!albumId) return;
-
-    for (let i = 0; i < files.length; i++) {
-      if (files[i].status === 'complete') continue;
-
-      setFiles((prev) =>
-        prev.map((f, idx) => (idx === i ? { ...f, status: 'uploading' as const } : f))
-      );
-
-      try {
-        await uploadTrack.mutateAsync({ file: files[i].file, albumId });
-        setFiles((prev) =>
-          prev.map((f, idx) =>
-            idx === i ? { ...f, status: 'complete' as const, progress: 100 } : f
-          )
-        );
-      } catch (err: any) {
-        setFiles((prev) =>
-          prev.map((f, idx) =>
-            idx === i
-              ? { ...f, status: 'error' as const, error: err?.response?.data?.error || 'Upload failed' }
-              : f
-          )
-        );
-      }
-    }
-  };
+  const {
+    actionError,
+    albums,
+    albumsError,
+    albumsLoading,
+    allComplete,
+    destinationReady,
+    files,
+    handleDestinationChange,
+    handleDragEnter,
+    handleDragLeave,
+    handleDragOver,
+    handleDrop,
+    handleFileChange,
+    handleUpload,
+    isDragging,
+    isWorking,
+    newAlbumArtist,
+    newAlbumGenre,
+    newAlbumTitle,
+    newAlbumYear,
+    refetchAlbums,
+    removeFile,
+    resetUpload,
+    selectedAlbum,
+    selectedAlbumId,
+    setNewAlbumArtist,
+    setNewAlbumGenre,
+    setNewAlbumTitle,
+    setNewAlbumYear,
+    showNewAlbum,
+    uploadProgress,
+  } = useVinilUploadFlow();
 
   return (
-    <div className="flex-1 overflow-y-auto p-8" style={{ paddingBottom: '120px' }}>
+    <div className="page" data-screen-label="Upload">
       <input
         ref={fileInputRef}
+        className="visually-hidden"
         type="file"
         multiple
-        accept="audio/*,.flac,.wav,.mp3,.aac,.ogg"
+        accept="audio/*,.flac,.wav,.mp3,.aac,.ogg,.alac"
         onChange={handleFileChange}
-        className="hidden"
+        disabled={isWorking}
       />
 
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="mb-2" style={{ color: 'var(--text-primary)' }}>Upload Music</h1>
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Add albums to your personal library</p>
-      </div>
+      <header className="page-head">
+        <p className="eyebrow mono">Your library</p>
+        <h1 className="serif">Add to your collection</h1>
+        <p className="lead">Bring in the records you own and keep every detail in one place.</p>
+      </header>
 
-      {/* Upload Zone */}
       <div
-        className="mb-8 flex flex-col items-center justify-center rounded-xl cursor-pointer transition-all"
-        style={{
-          height: '250px',
-          background: isDragging ? 'rgba(245, 166, 35, 0.05)' : 'var(--bg-deep)',
-          border: `2px dashed ${isDragging ? 'var(--accent-primary)' : 'var(--border-default)'}`,
-          boxShadow: isDragging ? '0 0 24px rgba(245, 166, 35, 0.3)' : 'none',
-        }}
-        onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragOver={(e) => e.preventDefault()}
-        onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+        className={`dropzone${isDragging && !isWorking ? ' over' : ''}${isWorking ? ' locked' : ''}`}
+        aria-disabled={isWorking}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={handleBrowse}
       >
-        <UploadIcon
-          className="w-16 h-16 mb-4"
-          style={{ color: isDragging ? 'var(--accent-primary)' : 'var(--text-muted)' }}
-        />
-        <p className="text-lg font-medium mb-2" style={{ color: isDragging ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
-          Drag & drop audio files here
-        </p>
-        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>or click to browse</p>
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Supports FLAC, WAV, MP3, AAC, OGG</p>
+        <DropzoneRecord />
+        <h3 className="serif">Drop your audio files here</h3>
+        <p className="lead">or</p>
+        <button
+          className="btn-clay"
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isWorking}
+        >
+          <UploadIcon size={16} /> Browse files
+        </button>
+        <p className="mono small dim">FLAC · WAV · MP3 · AAC · OGG · ALAC</p>
       </div>
 
-      {/* Files List */}
+      {actionError && files.length === 0 && <p className="form-error">{actionError}</p>}
+
       {files.length > 0 && (
-        <div className="rounded-lg p-6 mb-8" style={{ background: 'var(--bg-secondary)' }}>
-          <h3 className="mb-4" style={{ color: 'var(--text-primary)' }}>
-            Files ({files.length})
-          </h3>
-          <div className="space-y-3">
-            {files.map((file, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-4 p-3 rounded-md"
-                style={{ background: 'var(--bg-tertiary)' }}
-              >
-                <div
-                  className="flex items-center justify-center flex-shrink-0 w-10 h-10 rounded"
-                  style={{ background: 'var(--bg-deep)' }}
-                >
-                  {file.status === 'complete' ? (
-                    <Check className="w-5 h-5" style={{ color: 'var(--success)' }} />
-                  ) : file.status === 'error' ? (
-                    <X className="w-5 h-5" style={{ color: 'var(--error)' }} />
-                  ) : file.status === 'uploading' ? (
-                    <span className="text-xs" style={{ color: 'var(--accent-primary)' }}>
-                      {uploadTrack.progress}%
-                    </span>
-                  ) : (
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {index + 1}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                      {file.name}
-                    </span>
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{file.size}</span>
+        <>
+          <UploadQueue
+            files={files}
+            liveProgress={uploadProgress}
+            isLocked={isWorking}
+            onRemove={removeFile}
+          />
+
+          <section className="metadata-edit">
+            <h3 className="serif">Choose a home for these tracks</h3>
+            <div className="me-grid">
+              <div className="me-art" style={{ cursor: 'default', textAlign: 'center', padding: 18 }}>
+                {showNewAlbum ? <Plus size={34} /> : <Disc3 size={34} />}
+                <span className="serif" style={{ fontSize: 20 }}>
+                  {showNewAlbum ? 'A new record' : selectedAlbum?.title || 'Album details'}
+                </span>
+                <span className="mono small">
+                  {showNewAlbum ? 'Complete the fields' : selectedAlbum?.artist || 'Select a destination'}
+                </span>
+              </div>
+
+              <div className="me-fields">
+                <label>
+                  Destination album
+                  <select
+                    className="upload-destination-select"
+                    value={showNewAlbum ? NEW_ALBUM_VALUE : selectedAlbumId || ''}
+                    onChange={(event) => handleDestinationChange(event.target.value)}
+                    style={SELECT_STYLE}
+                    disabled={isWorking}
+                  >
+                    <option value="">{albumsLoading ? 'Loading albums…' : 'Choose an album'}</option>
+                    {albums.map((album) => (
+                      <option key={album.id} value={album.id}>{album.title} — {album.artist}</option>
+                    ))}
+                    <option value={NEW_ALBUM_VALUE}>＋ Create a new album</option>
+                  </select>
+                </label>
+
+                {albumsError && (
+                  <div className="form-error">
+                    Albums could not be loaded.{' '}
+                    <button type="button" onClick={() => refetchAlbums()} style={{ textDecoration: 'underline' }}>
+                      Try again
+                    </button>
                   </div>
-                  {file.status === 'uploading' && (
-                    <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--bg-deep)' }}>
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${uploadTrack.progress}%`, background: 'var(--accent-primary)' }}
-                      />
+                )}
+                {!albumsLoading && !albumsError && albums.length === 0 && !showNewAlbum && (
+                  <p className="st-sub">Your library is empty. Choose “Create a new album” to begin.</p>
+                )}
+
+                {showNewAlbum && (
+                  <>
+                    <div className="me-two">
+                      <label>
+                        Album title
+                        <input
+                          value={newAlbumTitle}
+                          onChange={(event) => setNewAlbumTitle(event.target.value)}
+                          placeholder="Kind of Blue"
+                          required
+                          disabled={isWorking}
+                        />
+                      </label>
+                      <label>
+                        Artist
+                        <input
+                          value={newAlbumArtist}
+                          onChange={(event) => setNewAlbumArtist(event.target.value)}
+                          placeholder="Miles Davis"
+                          required
+                          disabled={isWorking}
+                        />
+                      </label>
                     </div>
-                  )}
-                  {file.error && (
-                    <p className="text-xs mt-1" style={{ color: 'var(--error)' }}>{file.error}</p>
-                  )}
-                </div>
-                {file.status === 'pending' && (
-                  <button onClick={() => removeFile(index)} className="p-1 rounded transition-colors">
-                    <X className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-                  </button>
+                    <div className="me-two">
+                      <label>
+                        Genre
+                        <input
+                          value={newAlbumGenre}
+                          onChange={(event) => setNewAlbumGenre(event.target.value)}
+                          placeholder="Jazz"
+                          disabled={isWorking}
+                        />
+                      </label>
+                      <label>
+                        Year
+                        <input
+                          type="number"
+                          min="1000"
+                          max="9999"
+                          value={newAlbumYear}
+                          onChange={(event) => setNewAlbumYear(event.target.value)}
+                          placeholder="1959"
+                          disabled={isWorking}
+                        />
+                      </label>
+                    </div>
+                  </>
                 )}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Album Selection */}
-      {files.length > 0 && (
-        <div className="rounded-lg p-6" style={{ background: 'var(--bg-secondary)' }}>
-          <h3 className="mb-6" style={{ color: 'var(--text-primary)' }}>Select Album</h3>
-
-          {/* Existing Albums */}
-          {albums.length > 0 && !showNewAlbum && (
-            <div className="space-y-2 mb-4">
-              {albums.map((album) => (
-                <button
-                  key={album.id}
-                  onClick={() => setSelectedAlbumId(album.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-md transition-colors text-left"
-                  style={{
-                    background: selectedAlbumId === album.id ? 'rgba(245, 166, 35, 0.1)' : 'var(--bg-tertiary)',
-                    border: `1px solid ${selectedAlbumId === album.id ? 'var(--accent-primary)' : 'transparent'}`,
-                  }}
-                >
-                  <img
-                    src={album.artwork_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=200&h=200&fit=crop'}
-                    alt={album.title}
-                    className="w-10 h-10 rounded"
-                  />
-                  <div>
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{album.title}</div>
-                    <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>{album.artist}</div>
-                  </div>
-                </button>
-              ))}
             </div>
-          )}
 
-          {/* New Album Button / Form */}
-          {!showNewAlbum ? (
-            <button
-              onClick={() => { setShowNewAlbum(true); setSelectedAlbumId(null); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-md transition-colors"
-              style={{ border: '1px dashed var(--border-default)', color: 'var(--accent-primary)' }}
-            >
-              <Plus className="w-5 h-5" />
-              <span className="text-sm font-medium">Create New Album</span>
-            </button>
-          ) : (
-            <div className="space-y-4 p-4 rounded-md" style={{ background: 'var(--bg-tertiary)' }}>
-              <div>
-                <label className="block text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Album Title</label>
-                <input
-                  type="text"
-                  value={newAlbumTitle}
-                  onChange={(e) => setNewAlbumTitle(e.target.value)}
-                  placeholder="Enter album title"
-                  className="w-full px-4 py-2 rounded-md"
-                  style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Artist Name</label>
-                <input
-                  type="text"
-                  value={newAlbumArtist}
-                  onChange={(e) => setNewAlbumArtist(e.target.value)}
-                  placeholder="Enter artist name"
-                  className="w-full px-4 py-2 rounded-md"
-                  style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Genre</label>
-                  <input
-                    type="text"
-                    value={newAlbumGenre}
-                    onChange={(e) => setNewAlbumGenre(e.target.value)}
-                    placeholder="Genre"
-                    className="w-full px-4 py-2 rounded-md"
-                    style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Year</label>
-                  <input
-                    type="number"
-                    value={newAlbumYear}
-                    onChange={(e) => setNewAlbumYear(e.target.value)}
-                    placeholder="2024"
-                    className="w-full px-4 py-2 rounded-md"
-                    style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                  />
-                </div>
-              </div>
+            {actionError && <p className="form-error" style={{ marginTop: 18 }}>{actionError}</p>}
+            <div className="me-actions">
+              <button className="btn-ghost" type="button" onClick={resetUpload} disabled={isWorking}>
+                Clear
+              </button>
               <button
-                onClick={() => setShowNewAlbum(false)}
-                className="text-sm"
-                style={{ color: 'var(--text-secondary)' }}
+                className="btn-clay"
+                type="button"
+                onClick={handleUpload}
+                disabled={!destinationReady || isWorking || allComplete}
+                style={{ opacity: !destinationReady || isWorking || allComplete ? 0.55 : 1 }}
               >
-                Cancel — select existing album
+                <UploadIcon size={16} />
+                {isWorking ? 'Adding tracks…' : allComplete ? 'Added to library' : 'Add to library'}
               </button>
             </div>
-          )}
-
-          {/* Upload Button */}
-          <div className="flex items-center justify-end gap-3 mt-6">
-            <button
-              onClick={() => { setFiles([]); setSelectedAlbumId(null); setShowNewAlbum(false); }}
-              className="px-6 py-2.5 rounded-md transition-colors"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleCreateAlbumAndUpload}
-              disabled={
-                files.length === 0 ||
-                (!selectedAlbumId && !(showNewAlbum && newAlbumTitle && newAlbumArtist)) ||
-                uploadTrack.isPending
-              }
-              className="px-6 py-2.5 rounded-md transition-all hover:scale-105"
-              style={{
-                background: 'var(--accent-primary)',
-                color: 'var(--text-on-accent)',
-                opacity:
-                  files.length === 0 ||
-                  (!selectedAlbumId && !(showNewAlbum && newAlbumTitle && newAlbumArtist))
-                    ? 0.5
-                    : 1,
-              }}
-            >
-              {uploadTrack.isPending ? 'Uploading...' : 'Upload to Library'}
-            </button>
-          </div>
-        </div>
+          </section>
+        </>
       )}
     </div>
   );

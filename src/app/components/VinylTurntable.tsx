@@ -1,212 +1,105 @@
-import { motion } from 'motion/react';
+import { Music2 } from 'lucide-react';
 import { usePlayer } from '@/app/context/PlayerContext';
 
 export const VinylTurntable = () => {
   const { currentTrack, isPlaying } = usePlayer();
 
   return (
-    <div className="relative flex items-center justify-center">
-      {/* Vinyl Record */}
-      <motion.div
-        className="relative"
-        animate={{ rotate: isPlaying ? 360 : 0 }}
-        transition={{
-          duration: 1.8,
-          repeat: isPlaying ? Infinity : 0,
-          ease: 'linear',
-        }}
+    <div
+      className="np-turntable"
+      role="img"
+      aria-label={currentTrack ? `Vinyl record for ${currentTrack.title}` : 'Vinyl record'}
+    >
+      <div
+        className="np-platter"
+        style={{ width: 'calc(100% - 24px)', aspectRatio: '1' }}
+        aria-hidden="true"
       >
-        {/* Outer vinyl disc with rose gold rim */}
         <div
-          className="relative"
+          className="vinyl-spin relative h-full w-full overflow-hidden rounded-full"
           style={{
-            width: '420px',
-            height: '420px',
-            borderRadius: '50%',
-            background: 'var(--vinyl-black)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.7)',
+            animationPlayState: isPlaying ? 'running' : 'paused',
+            background: [
+              'repeating-radial-gradient(circle at center, transparent 0 4px, color-mix(in srgb, var(--rule-2) 14%, transparent) 4px 5px)',
+              'var(--vinyl)',
+            ].join(', '),
+            border: '1px solid color-mix(in srgb, var(--rule-2) 32%, transparent)',
+            boxShadow: 'inset 0 0 42px rgba(0, 0, 0, 0.45), 0 8px 22px rgba(0, 0, 0, 0.18)',
           }}
         >
-          {/* Rose gold rim */}
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              border: '4px solid var(--vinyl-highlight)',
-              opacity: 0.6,
-            }}
+          <span
+            className="absolute inset-[4%] rounded-full border border-white/4"
+            aria-hidden="true"
+          />
+          <span
+            className="absolute inset-[18%] rounded-full border border-white/4"
+            aria-hidden="true"
           />
 
-          {/* Vinyl grooves - concentric circles */}
-          {[...Array(40)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full"
-              style={{
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: `${400 - i * 8}px`,
-                height: `${400 - i * 8}px`,
-                border: '1px solid',
-                borderColor: i % 2 === 0 ? 'var(--vinyl-black)' : 'var(--vinyl-grooves)',
-                opacity: 0.3,
-              }}
-            />
-          ))}
-
-          {/* Center label with album art */}
           <div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full overflow-hidden"
+            className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full"
             style={{
-              width: '140px',
-              height: '140px',
-              border: '3px solid var(--accent-primary)',
-              boxShadow: '0 0 20px rgba(245, 166, 35, 0.4)',
+              width: '32.5%',
+              aspectRatio: '1',
+              background: 'var(--clay)',
+              border: 'clamp(2px, 0.7vw, 3px) solid var(--paper-2)',
+              boxShadow: '0 0 0 1px color-mix(in srgb, var(--clay) 55%, transparent)',
             }}
           >
-            {currentTrack?.artworkUrl ? (
+            {currentTrack?.artwork_url ? (
               <img
-                src={currentTrack.artworkUrl}
-                alt={currentTrack.album}
-                className="w-full h-full object-cover"
+                src={currentTrack.artwork_url}
+                alt=""
+                className="h-full w-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-accent-primary">
-                <svg
-                  className="w-12 h-12 text-text-on-accent"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
-                  />
-                </svg>
-              </div>
+              <Music2 style={{ width: '34%', height: '34%', color: 'var(--clay-on)' }} />
             )}
           </div>
 
-          {/* Center spindle */}
-          <div
+          <span
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
-              width: '12px',
-              height: '12px',
-              background: '#0a0a0a',
-              boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.8)',
+              width: '2.8%',
+              aspectRatio: '1',
+              background: 'var(--paper-2)',
+              border: '2px solid var(--vinyl)',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.45)',
             }}
-          />
-
-          {/* Subtle highlight on upper left */}
-          <div
-            className="absolute rounded-full pointer-events-none"
-            style={{
-              top: '10%',
-              left: '15%',
-              width: '100px',
-              height: '100px',
-              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 70%)',
-            }}
+            aria-hidden="true"
           />
         </div>
-      </motion.div>
+      </div>
 
-      {/* Tonearm */}
-      <motion.div
-        className="absolute"
-        style={{
-          right: '-80px',
-          top: '50%',
-          transformOrigin: 'right center',
-        }}
-        animate={{
-          rotate: isPlaying ? -25 : 0,
-        }}
-        transition={{
-          duration: 0.3,
-          ease: 'easeInOut',
-        }}
+      <svg
+        className={`np-tonearm ${isPlaying ? 'on' : ''}`}
+        viewBox="0 0 200 200"
+        style={{ width: '45.5%', height: '45.5%' }}
+        aria-hidden="true"
       >
-        {/* Tonearm pivot base */}
-        <div
-          className="absolute right-0 top-0 rounded-full"
-          style={{
-            width: '32px',
-            height: '32px',
-            background: 'var(--bg-tertiary)',
-            border: '2px solid var(--border-default)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
-          }}
+        <circle cx="172" cy="23" r="22" fill="var(--paper-3)" stroke="var(--rule-2)" strokeWidth="2" />
+        <circle cx="172" cy="23" r="8" fill="var(--tonearm-base)" />
+        <rect x="164" y="0" width="16" height="12" rx="5" fill="var(--tonearm)" />
+        <path
+          d="M169 30 C160 72 138 102 94 132"
+          fill="none"
+          stroke="var(--tonearm-base)"
+          strokeWidth="10"
+          strokeLinecap="round"
         />
-
-        {/* Tonearm */}
-        <div
-          className="absolute right-4 top-4"
-          style={{
-            width: '160px',
-            height: '8px',
-            background: 'linear-gradient(90deg, var(--tonearm-silver) 0%, var(--tonearm-dark) 100%)',
-            borderRadius: '4px',
-            transformOrigin: 'right center',
-            transform: 'rotate(-15deg)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.4)',
-          }}
-        >
-          {/* Headshell */}
-          <div
-            className="absolute -left-3 top-1/2 -translate-y-1/2"
-            style={{
-              width: '20px',
-              height: '12px',
-              background: 'var(--tonearm-dark)',
-              borderRadius: '2px',
-            }}
-          >
-            {/* Cartridge */}
-            <div
-              className="absolute -left-1 top-1/2 -translate-y-1/2"
-              style={{
-                width: '6px',
-                height: '6px',
-                background: 'var(--accent-primary)',
-                borderRadius: '1px',
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Counterweight */}
-        <div
-          className="absolute right-8 top-0 rounded-full"
-          style={{
-            width: '16px',
-            height: '16px',
-            background: 'var(--tonearm-silver)',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-          }}
+        <path
+          d="M169 29 C159 70 137 99 93 130"
+          fill="none"
+          stroke="var(--tonearm)"
+          strokeWidth="6"
+          strokeLinecap="round"
         />
-      </motion.div>
-
-      {/* Ambient glow when playing */}
-      {isPlaying && (
-        <motion.div
-          className="absolute inset-0 rounded-full pointer-events-none"
-          style={{
-            boxShadow: '0 0 80px rgba(245, 166, 35, 0.2)',
-          }}
-          animate={{
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-      )}
+        <g transform="translate(79 124) rotate(-35)">
+          <rect width="31" height="15" rx="3" fill="var(--tonearm-base)" />
+          <rect x="5" y="4" width="18" height="7" rx="2" fill="var(--ink-3)" />
+          <circle cx="2" cy="13" r="3" fill="var(--clay)" />
+        </g>
+      </svg>
     </div>
   );
 };

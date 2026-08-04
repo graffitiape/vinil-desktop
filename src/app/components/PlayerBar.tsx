@@ -1,7 +1,28 @@
-import { Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, Repeat1, Heart, Volume2, VolumeX, List, Disc3 } from 'lucide-react';
+import {
+  useState,
+  type CSSProperties,
+  type ChangeEvent,
+} from 'react';
+import {
+  Disc3,
+  Heart,
+  ListMusic,
+  Moon,
+  Pause,
+  Play,
+  Repeat,
+  Repeat1,
+  Shuffle,
+  SkipBack,
+  SkipForward,
+  Sun,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
+import { PlaybackProgress } from '@/app/components/PlaybackProgress';
 import { usePlayer } from '@/app/context/PlayerContext';
+import { useVinilTheme } from '@/app/hooks/useVinilTheme';
 import { formatDuration } from '@/app/utils/format';
-import { useState } from 'react';
 
 interface PlayerBarProps {
   onOpenNowPlaying: () => void;
@@ -14,6 +35,7 @@ export const PlayerBar = ({ onOpenNowPlaying }: PlayerBarProps) => {
     currentTime,
     duration,
     volume,
+    isMuted,
     isShuffle,
     repeatMode,
     togglePlay,
@@ -21,207 +43,171 @@ export const PlayerBar = ({ onOpenNowPlaying }: PlayerBarProps) => {
     previousTrack,
     seekTo,
     setVolume,
+    toggleMute,
     toggleShuffle,
     toggleRepeat,
   } = usePlayer();
-
-  const [isLiked, setIsLiked] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [likedTrackIds, setLikedTrackIds] = useState<Set<string>>(() => new Set());
+  const { theme, toggleTheme } = useVinilTheme();
 
   if (!currentTrack) return null;
 
   const trackDuration = duration || currentTrack.duration;
-  const progress = trackDuration > 0 ? (currentTime / trackDuration) * 100 : 0;
+  const isLiked = likedTrackIds.has(currentTrack.id);
+  const repeatLabel = repeatMode === 'one'
+    ? 'Repeat one enabled'
+    : repeatMode === 'all'
+      ? 'Repeat queue enabled'
+      : 'Repeat off';
 
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
-    const newTime = Math.floor(percentage * trackDuration);
-    seekTo(newTime);
+  const handleVolumeChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setVolume(Number(event.target.value));
   };
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseInt(e.target.value);
-    setVolume(newVolume);
-    if (newVolume > 0) setIsMuted(false);
-  };
-
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-    if (!isMuted) {
-      setVolume(0);
-    } else {
-      setVolume(70);
-    }
+  const toggleLike = () => {
+    setLikedTrackIds((currentLikedTracks) => {
+      const nextLikedTracks = new Set(currentLikedTracks);
+      if (nextLikedTracks.has(currentTrack.id)) {
+        nextLikedTracks.delete(currentTrack.id);
+      } else {
+        nextLikedTracks.add(currentTrack.id);
+      }
+      return nextLikedTracks;
+    });
   };
 
   return (
-    <div
-      className="flex items-center justify-between px-4 py-3 gap-6 shrink-0"
-      style={{
-        height: '90px',
-        background: 'var(--bg-secondary)',
-        borderTop: '1px solid var(--border-default)',
-        zIndex: 50,
-      }}
-    >
-      {/* Left - Now Playing */}
-      <div className="flex items-center gap-4 w-[30%]">
-        <div className="relative group cursor-pointer" onClick={onOpenNowPlaying}>
-          <img
-            src={currentTrack.artwork_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=400&fit=crop'}
-            alt={currentTrack.title}
-            className="w-14 h-14 rounded"
-          />
-          <div
-            className="absolute -right-1 top-0 bottom-0 w-2 rounded-r"
+    <section className="player-bar" aria-label="Now playing">
+      <div className="pb-left">
+        <button
+          type="button"
+          className="pb-art"
+          style={{ isolation: 'isolate' }}
+          onClick={onOpenNowPlaying}
+          aria-label={`Open Now Playing for ${currentTrack.title}`}
+        >
+          {currentTrack.artwork_url ? (
+            <img src={currentTrack.artwork_url} alt="" />
+          ) : (
+            <span
+              className="flex h-full w-full items-center justify-center rounded-md"
+              style={{ background: 'var(--paper-3)', color: 'var(--clay)' }}
+              aria-hidden="true"
+            >
+              <Disc3 size={22} strokeWidth={1.4} />
+            </span>
+          )}
+          <span
+            className="pb-art-vinyl"
+            aria-hidden="true"
             style={{
-              background: 'var(--vinyl-black)',
-              borderTop: '1px solid var(--vinyl-highlight)',
-              borderBottom: '1px solid var(--vinyl-highlight)',
+              borderRadius: '50%',
+              background: 'repeating-radial-gradient(circle, var(--vinyl) 0 3px, #2b2723 4px 5px)',
             }}
           />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+        </button>
+
+        <div className="pb-track">
+          <button type="button" className="pb-title text-left" onClick={onOpenNowPlaying}>
             {currentTrack.title}
-          </div>
-          <button
-            className="text-xs truncate hover:underline"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-primary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
-          >
-            {currentTrack.artist}
           </button>
+          <div className="pb-artist">{currentTrack.artist}</div>
         </div>
         <button
-          onClick={() => setIsLiked(!isLiked)}
-          className="p-2 rounded-md transition-colors"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          type="button"
+          className={`icon-btn ${isLiked ? 'active' : ''}`}
+          onClick={toggleLike}
+          aria-label={isLiked ? `Unlike ${currentTrack.title}` : `Like ${currentTrack.title}`}
+          aria-pressed={isLiked}
         >
-          <Heart
-            className="w-5 h-5"
-            style={{
-              color: isLiked ? 'var(--accent-primary)' : 'var(--text-secondary)',
-              fill: isLiked ? 'var(--accent-primary)' : 'none',
-            }}
-          />
+          <Heart size={17} fill={isLiked ? 'currentColor' : 'none'} />
         </button>
       </div>
 
-      {/* Center - Controls */}
-      <div className="flex flex-col items-center gap-2 w-[40%]">
-        <div className="flex items-center gap-3">
-          <button onClick={toggleShuffle} className="p-2 rounded-md transition-colors"
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+      <div className="pb-center">
+        <div className="pb-controls">
+          <button
+            type="button"
+            className={`icon-btn ${isShuffle ? 'active' : ''}`}
+            onClick={toggleShuffle}
+            aria-label={isShuffle ? 'Turn shuffle off' : 'Turn shuffle on'}
+            aria-pressed={isShuffle}
           >
-            <Shuffle className="w-5 h-5" style={{ color: isShuffle ? 'var(--accent-primary)' : 'var(--text-secondary)' }} />
+            <Shuffle size={17} />
           </button>
-          <button onClick={previousTrack} className="p-2 rounded-md transition-colors"
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            <SkipBack className="w-6 h-6" style={{ color: 'var(--text-primary)' }} />
+          <button type="button" className="icon-btn" onClick={previousTrack} aria-label="Previous track or restart">
+            <SkipBack size={19} />
           </button>
           <button
+            type="button"
+            className="play-btn"
             onClick={togglePlay}
-            className="flex items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95"
-            style={{ width: '40px', height: '40px', background: 'var(--accent-primary)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-hover)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--accent-primary)'; }}
+            aria-label={isPlaying ? 'Pause' : 'Play'}
           >
-            {isPlaying ? (
-              <Pause className="w-5 h-5" style={{ color: 'var(--text-on-accent)' }} />
-            ) : (
-              <Play className="w-5 h-5" style={{ color: 'var(--text-on-accent)' }} />
-            )}
+            {isPlaying ? <Pause size={18} /> : <Play size={18} fill="currentColor" />}
           </button>
-          <button onClick={nextTrack} className="p-2 rounded-md transition-colors"
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            <SkipForward className="w-6 h-6" style={{ color: 'var(--text-primary)' }} />
+          <button type="button" className="icon-btn" onClick={nextTrack} aria-label="Next track">
+            <SkipForward size={19} />
           </button>
-          <button onClick={toggleRepeat} className="p-2 rounded-md transition-colors"
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          <button
+            type="button"
+            className={`icon-btn ${repeatMode !== 'off' ? 'active' : ''}`}
+            onClick={toggleRepeat}
+            aria-label={repeatLabel}
+            aria-pressed={repeatMode !== 'off'}
           >
-            {repeatMode === 'one' ? (
-              <Repeat1 className="w-5 h-5" style={{ color: 'var(--accent-primary)' }} />
-            ) : (
-              <Repeat className="w-5 h-5" style={{ color: repeatMode === 'all' ? 'var(--accent-primary)' : 'var(--text-secondary)' }} />
-            )}
+            {repeatMode === 'one' ? <Repeat1 size={17} /> : <Repeat size={17} />}
           </button>
         </div>
 
-        {/* Progress Bar */}
-        <div className="flex items-center gap-2 w-full">
-          <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
-            {formatDuration(Math.floor(currentTime))}
-          </span>
-          <div
-            className="flex-1 h-1.5 rounded-full cursor-pointer group relative"
-            style={{ background: 'var(--bg-deep)' }}
-            onClick={handleSeek}
-          >
-            <div
-              className="h-full rounded-full relative"
-              style={{ width: `${progress}%`, background: 'var(--accent-primary)' }}
-            >
-              <div
-                className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ background: 'var(--text-primary)', boxShadow: '0 0 8px rgba(245, 166, 35, 0.6)' }}
-              />
-            </div>
-          </div>
-          <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
-            {formatDuration(Math.floor(trackDuration))}
-          </span>
+        <div className="pb-progress">
+          <span className="time mono">{formatDuration(Math.floor(currentTime))}</span>
+          <PlaybackProgress value={currentTime} maximum={trackDuration} onChange={seekTo} />
+          <span className="time mono">{formatDuration(Math.floor(trackDuration))}</span>
         </div>
       </div>
 
-      {/* Right - Extras */}
-      <div className="flex items-center justify-end gap-3 w-[30%]">
-        <button onClick={onOpenNowPlaying} className="p-2 rounded-md transition-colors" title="Now Playing"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+      <div className="pb-right">
+        <span className="icon-btn" role="img" aria-label="Queue" title="Queue">
+          <ListMusic size={17} />
+        </span>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={onOpenNowPlaying}
+          aria-label="Open full-screen Now Playing"
         >
-          <Disc3 className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
+          <Disc3 size={17} />
         </button>
-        <button className="p-2 rounded-md transition-colors" title="Queue"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={toggleMute}
+          aria-label={isMuted ? 'Unmute' : 'Mute'}
+          aria-pressed={isMuted}
         >
-          <List className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
+          {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
         </button>
-        <div className="flex items-center gap-2">
-          <button onClick={toggleMute} className="p-2 rounded-md transition-colors"
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            {isMuted || volume === 0 ? (
-              <VolumeX className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
-            ) : (
-              <Volume2 className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
-            )}
-          </button>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={isMuted ? 0 : volume}
-            onChange={handleVolumeChange}
-            className="w-20 h-1 rounded-full appearance-none cursor-pointer"
-            style={{
-              background: `linear-gradient(to right, var(--accent-primary) 0%, var(--accent-primary) ${volume}%, var(--bg-deep) ${volume}%, var(--bg-deep) 100%)`,
-            }}
-          />
-        </div>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={volume}
+          onChange={handleVolumeChange}
+          className="vol-slider"
+          style={{ '--v': `${volume}%` } as CSSProperties}
+          aria-label="Volume"
+          aria-valuetext={isMuted ? 'Muted' : `${Math.round(volume)} percent`}
+        />
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Use light theme' : 'Use dark theme'}
+        >
+          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
       </div>
-    </div>
+    </section>
   );
 };
